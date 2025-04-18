@@ -6,9 +6,24 @@
     "saved": "Configurações salvas com sucesso!",
     "saveInfo": "As configurações são salvas automaticamente"
   },
+  "admin": {
+    "userManagement": "Gerenciamento de Usuários",
+    "name": "Nome",
+    "email": "E-mail",
+    "plan": "Plano",
+    "status": "Status",
+    "role": "Função",
+    "actions": "Ações",
+    "makeAdminConfirm": "Tornar Administrador?",
+    "makeAdminWarning": "Este usuário terá acesso completo ao painel administrativo.",
+    "removeAdminConfirm": "Remover Privilégios de Admin?",
+    "removeAdminWarning": "Este usuário perderá acesso ao painel administrativo.",
+    "userUpdated": "Permissões do usuário atualizadas com sucesso!"
+  },
   "common": {
     "save": "Salvar",
     "cancel": "Cancelar",
+    "confirm": "Confirmar",
     "loading": "Carregando...",
     "error": "Erro",
     "success": "Sucesso"
