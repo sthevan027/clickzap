@@ -1,0 +1,16 @@
+{
+  "settings": {
+    "title": "Configuración",
+    "language": "Idioma",
+    "darkMode": "Modo Oscuro",
+    "saved": "¡Configuración guardada con éxito!",
+    "saveInfo": "La configuración se guarda automáticamente"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito"
+  }
+} 

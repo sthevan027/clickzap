@@ -1,0 +1,16 @@
+{
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "darkMode": "Dark Mode",
+    "saved": "Settings saved successfully!",
+    "saveInfo": "Settings are saved automatically"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  }
+} 
