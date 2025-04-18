@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "env": {
+    "MONGODB_URI": "${MONGODB_URI}",
+    "JWT_SECRET": "${JWT_SECRET}",
+    "HOTMART_CLIENT_ID": "${HOTMART_CLIENT_ID}",
+    "HOTMART_CLIENT_SECRET": "${HOTMART_CLIENT_SECRET}"
+  }
+} 

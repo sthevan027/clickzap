@@ -1,55 +1,49 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const logger = require('../config/logger');
+const logger = require('../config/logger').logger;
 
 class AuthController {
     async register(req, res) {
         try {
             const { name, email, password } = req.body;
 
-            // Verifica se usuário já existe
+            // Verificar se usuário já existe
             const existingUser = await User.findOne({ email });
             if (existingUser) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email já cadastrado'
-                });
+                return res.status(400).json({ error: 'Email já cadastrado' });
             }
 
-            // Cria novo usuário
-            const user = await User.create({
+            // Criar novo usuário
+            const user = new User({
                 name,
                 email,
-                password,
-                plan: 'free' // Plano gratuito por padrão
+                password
             });
 
-            // Gera token JWT
+            await user.save();
+
+            // Gerar token
             const token = jwt.sign(
-                { id: user._id },
+                { id: user._id, role: user.role },
                 process.env.JWT_SECRET,
-                { expiresIn: '7d' }
+                { expiresIn: process.env.JWT_EXPIRES_IN }
             );
 
-            // Remove senha do objeto de resposta
-            const userResponse = user.toObject();
-            delete userResponse.password;
+            logger.info(`Novo usuário registrado: ${email}`);
 
-            logger.info('Novo usuário registrado:', { userId: user._id });
-
-            res.status(201).json({
-                success: true,
-                token,
-                user: userResponse
+            return res.status(201).json({
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                },
+                token
             });
-
         } catch (error) {
             logger.error('Erro no registro:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Erro ao registrar usuário'
-            });
+            return res.status(500).json({ error: 'Erro ao registrar usuário' });
         }
     }
 
@@ -57,87 +51,86 @@ class AuthController {
         try {
             const { email, password } = req.body;
 
-            // Busca usuário com senha
-            const user = await User.findOne({ email }).select('+password');
-            
+            // Buscar usuário
+            const user = await User.findOne({ email });
             if (!user) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Email ou senha inválidos'
-                });
+                return res.status(401).json({ error: 'Credenciais inválidas' });
             }
 
-            // Verifica senha
+            // Verificar senha
             const isMatch = await user.comparePassword(password);
             if (!isMatch) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Email ou senha inválidos'
-                });
+                return res.status(401).json({ error: 'Credenciais inválidas' });
             }
 
-            // Verifica status do usuário
-            if (user.status !== 'active') {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Conta desativada. Entre em contato com o suporte.'
-                });
+            // Verificar se usuário está ativo
+            if (!user.active) {
+                return res.status(401).json({ error: 'Conta desativada' });
             }
 
-            // Atualiza último login
+            // Atualizar último login
             user.lastLogin = new Date();
             await user.save();
 
-            // Gera token JWT
+            // Gerar token
             const token = jwt.sign(
-                { id: user._id },
+                { id: user._id, role: user.role },
                 process.env.JWT_SECRET,
-                { expiresIn: '7d' }
+                { expiresIn: process.env.JWT_EXPIRES_IN }
             );
 
-            // Remove senha do objeto de resposta
-            const userResponse = user.toObject();
-            delete userResponse.password;
+            logger.info(`Usuário logado: ${email}`);
 
-            logger.info('Usuário logado:', { userId: user._id });
-
-            res.json({
-                success: true,
-                token,
-                user: userResponse
+            return res.json({
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                },
+                token
             });
-
         } catch (error) {
             logger.error('Erro no login:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Erro ao fazer login'
-            });
+            return res.status(500).json({ error: 'Erro ao fazer login' });
         }
     }
 
     async me(req, res) {
         try {
-            const user = await User.findById(req.user.id);
-            
+            const user = await User.findById(req.user.id)
+                .select('-password')
+                .populate('subscription');
+
             if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Usuário não encontrado'
-                });
+                return res.status(404).json({ error: 'Usuário não encontrado' });
             }
 
-            res.json({
-                success: true,
-                user
-            });
-
+            return res.json(user);
         } catch (error) {
-            logger.error('Erro ao buscar usuário:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Erro ao buscar dados do usuário'
-            });
+            logger.error('Erro ao buscar dados do usuário:', error);
+            return res.status(500).json({ error: 'Erro ao buscar dados do usuário' });
+        }
+    }
+
+    async updateSettings(req, res) {
+        try {
+            const { settings } = req.body;
+            const user = await User.findById(req.user.id);
+
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado' });
+            }
+
+            user.settings = { ...user.settings, ...settings };
+            await user.save();
+
+            logger.info(`Configurações atualizadas para usuário ${user.email}`);
+
+            return res.json({ settings: user.settings });
+        } catch (error) {
+            logger.error('Erro ao atualizar configurações:', error);
+            return res.status(500).json({ error: 'Erro ao atualizar configurações' });
         }
     }
 

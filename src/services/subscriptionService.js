@@ -1,16 +1,12 @@
 const axios = require('axios');
 const config = require('../config/hotmart');
-const logger = require('../config/logger');
-const { getHotmartToken } = require('../utils/auth');
-const db = require('../database/db');
+const logger = require('../config/logger').logger;
+const { getHotmartToken } = require('../utils/hotmart');
+const Subscription = require('../models/Subscription');
+
+const HOTMART_API_URL = 'https://api.hotmart.com/v1';
 
 class SubscriptionService {
-  constructor() {
-    this.api = axios.create({
-      baseURL: 'https://developers.hotmart.com/payments/api/v1'
-    });
-  }
-
   async generateCheckoutLink(plan) {
     try {
       const product = config.products[plan];
@@ -19,77 +15,120 @@ class SubscriptionService {
       }
 
       const token = await getHotmartToken();
-      
-      const response = await this.api.post('/checkout/create', {
-        product_id: product.id,
-        offer_code: product.offer,
-        price: product.price
-      }, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await axios.post(
+        `${HOTMART_API_URL}/sales/checkout`,
+        {
+          product: {
+            id: product.id
+          },
+          buyer: {
+            email: 'comprador@exemplo.com'
+          },
+          offer: {
+            code: product.offerCode
+          }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      return response.data.checkout_url;
+      return response.data.checkoutUrl;
     } catch (error) {
       logger.error('Erro ao gerar link de checkout:', error);
       throw error;
     }
   }
 
-  async validateWebhook(token, data) {
+  async validateWebhook(data) {
     try {
-      // Validar token do webhook
-      if (token !== config.webhook_token) {
-        throw new Error('Token inválido');
+      const { token, event } = data;
+      if (!token || !event) {
+        throw new Error('Dados do webhook inválidos');
       }
 
-      // Validar dados obrigatórios
-      if (!data.transaction || !data.status) {
-        throw new Error('Dados incompletos');
+      // Validar token do webhook
+      const isValid = await this.validateWebhookToken(token);
+      if (!isValid) {
+        throw new Error('Token do webhook inválido');
       }
 
       return true;
     } catch (error) {
-      logger.error('Erro na validação do webhook:', error);
+      logger.error('Erro ao validar webhook:', error);
       throw error;
     }
   }
 
-  async processSubscriptionUpdate(userId, planData) {
+  async processSubscriptionUpdate(data) {
     try {
+      const { subscription } = data;
+      if (!subscription) {
+        throw new Error('Dados da assinatura inválidos');
+      }
+
       // Validar plano
-      if (!config.products[planData.plan]) {
+      const plan = this.getPlanByProductId(subscription.product.id);
+      if (!plan) {
         throw new Error('Plano inválido');
       }
 
-      // Atualizar plano no banco de dados
-      await db.subscription.update({
-        where: { userId },
-        data: {
-          plan: planData.plan,
-          status: planData.status,
-          updatedAt: new Date()
-        }
-      });
+      // Atualizar ou criar assinatura no banco de dados
+      await Subscription.findOneAndUpdate(
+        { hotmartSubscriptionId: subscription.id },
+        {
+          $set: {
+            plan,
+            status: subscription.status,
+            startDate: new Date(subscription.startDate),
+            endDate: new Date(subscription.endDate),
+            lastPaymentDate: new Date(subscription.lastPaymentDate),
+            nextPaymentDate: new Date(subscription.nextPaymentDate),
+            price: subscription.price,
+            paymentMethod: subscription.paymentMethod,
+            metadata: subscription.metadata || {}
+          }
+        },
+        { upsert: true, new: true }
+      );
 
-      logger.info(`Plano atualizado para usuário ${userId}`);
+      logger.info(`Assinatura ${subscription.id} atualizada com sucesso`);
       return true;
     } catch (error) {
-      logger.error('Erro ao atualizar plano:', error);
+      logger.error('Erro ao processar atualização de assinatura:', error);
       throw error;
     }
   }
 
-  async cancelSubscription(userId) {
+  async cancelSubscription(subscriptionId) {
     try {
-      await db.subscription.update({
-        where: { userId },
-        data: {
-          status: 'CANCELLED',
-          cancelledAt: new Date()
+      const token = await getHotmartToken();
+      await axios.post(
+        `${HOTMART_API_URL}/subscriptions/${subscriptionId}/cancel`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
-      logger.info(`Assinatura cancelada para usuário ${userId}`);
+      // Atualizar status no banco de dados
+      await Subscription.findOneAndUpdate(
+        { hotmartSubscriptionId: subscriptionId },
+        {
+          $set: {
+            status: 'cancelled',
+            cancelledAt: new Date()
+          }
+        }
+      );
+
+      logger.info(`Assinatura ${subscriptionId} cancelada com sucesso`);
       return true;
     } catch (error) {
       logger.error('Erro ao cancelar assinatura:', error);
@@ -97,17 +136,32 @@ class SubscriptionService {
     }
   }
 
-  async reactivateSubscription(userId) {
+  async reactivateSubscription(subscriptionId) {
     try {
-      await db.subscription.update({
-        where: { userId },
-        data: {
-          status: 'ACTIVE',
-          cancelledAt: null
+      const token = await getHotmartToken();
+      await axios.post(
+        `${HOTMART_API_URL}/subscriptions/${subscriptionId}/reactivate`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
-      logger.info(`Assinatura reativada para usuário ${userId}`);
+      // Atualizar status no banco de dados
+      await Subscription.findOneAndUpdate(
+        { hotmartSubscriptionId: subscriptionId },
+        {
+          $set: {
+            status: 'active',
+            cancelledAt: null
+          }
+        }
+      );
+
+      logger.info(`Assinatura ${subscriptionId} reativada com sucesso`);
       return true;
     } catch (error) {
       logger.error('Erro ao reativar assinatura:', error);
@@ -115,28 +169,37 @@ class SubscriptionService {
     }
   }
 
-  async getSubscriptionStatus(userId) {
+  async getSubscriptionStatus(subscriptionId) {
     try {
-      const subscription = await db.subscription.findUnique({
-        where: { userId },
-        select: {
-          plan: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-          cancelledAt: true
+      const token = await getHotmartToken();
+      const response = await axios.get(
+        `${HOTMART_API_URL}/subscriptions/${subscriptionId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         }
-      });
+      );
 
-      if (!subscription) {
-        throw new Error('Assinatura não encontrada');
-      }
-
-      return subscription;
+      return response.data;
     } catch (error) {
-      logger.error('Erro ao consultar status da assinatura:', error);
+      logger.error('Erro ao obter status da assinatura:', error);
       throw error;
     }
+  }
+
+  // Métodos auxiliares
+  async validateWebhookToken(token) {
+    return token === process.env.HOTMART_WEBHOOK_TOKEN;
+  }
+
+  getPlanByProductId(productId) {
+    for (const [plan, product] of Object.entries(config.products)) {
+      if (product.id === productId) {
+        return plan;
+      }
+    }
+    return null;
   }
 }
 

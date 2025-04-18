@@ -32,6 +32,6 @@ router.post('/reset-password', authController.resetPassword);
 
 // Rotas protegidas
 router.get('/me', auth, authController.me);
-router.post('/update-password', auth, authController.updatePassword);
+router.put('/settings', auth, authController.updateSettings);
 
 module.exports = router; 

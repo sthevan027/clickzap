@@ -4,66 +4,59 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Nome é obrigatório'],
+        required: true,
         trim: true
     },
     email: {
         type: String,
-        required: [true, 'Email é obrigatório'],
+        required: true,
         unique: true,
-        lowercase: true,
-        trim: true
+        trim: true,
+        lowercase: true
     },
     password: {
         type: String,
-        required: [true, 'Senha é obrigatória'],
-        minlength: [6, 'Senha deve ter no mínimo 6 caracteres'],
-        select: false
+        required: true,
+        minlength: 6
     },
     role: {
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
     },
-    plan: {
-        type: String,
-        enum: ['free', 'basic', 'premium'],
-        default: 'free'
-    },
-    credits: {
-        messages: {
-            type: Number,
-            default: 100 // Plano free começa com 100 mensagens
-        },
-        media: {
-            type: Number,
-            default: 10 // Plano free começa com 10 envios de mídia
-        }
-    },
-    hotmartCustomerId: {
-        type: String,
-        sparse: true
-    },
-    status: {
-        type: String,
-        enum: ['active', 'inactive', 'suspended'],
-        default: 'active'
-    },
-    lastLogin: Date,
-    whatsappConnected: {
+    active: {
         type: Boolean,
-        default: false
+        default: true
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
+    lastLogin: {
+        type: Date
     },
-    updatedAt: Date
+    subscription: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Subscription'
+    },
+    settings: {
+        notifications: {
+            email: {
+                type: Boolean,
+                default: true
+            },
+            whatsapp: {
+                type: Boolean,
+                default: true
+            }
+        },
+        theme: {
+            type: String,
+            enum: ['light', 'dark'],
+            default: 'light'
+        }
+    }
 }, {
     timestamps: true
 });
 
-// Criptografa a senha antes de salvar
+// Hash da senha antes de salvar
 userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
     
@@ -76,28 +69,16 @@ userSchema.pre('save', async function(next) {
     }
 });
 
-// Método para verificar senha
+// Método para comparar senhas
 userSchema.methods.comparePassword = async function(candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.password);
+    return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Método para atualizar créditos baseado no plano
-userSchema.methods.updatePlanCredits = function() {
-    switch (this.plan) {
-        case 'free':
-            this.credits.messages = 100;
-            this.credits.media = 10;
-            break;
-        case 'basic':
-            this.credits.messages = 1000;
-            this.credits.media = 100;
-            break;
-        case 'premium':
-            this.credits.messages = 5000;
-            this.credits.media = 500;
-            break;
-    }
-    return this.save();
-};
+// Índices
+userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ active: 1 });
 
-module.exports = mongoose.model('User', userSchema); 
+const User = mongoose.model('User', userSchema);
+
+module.exports = User; 

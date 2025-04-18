@@ -1,0 +1,22 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "schedule": [
+    "every weekend"
+  ],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true
+    }
+  ],
+  "labels": ["dependencies"],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 16,
+  "rangeStrategy": "pin",
+  "semanticCommits": true,
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps"
+} 

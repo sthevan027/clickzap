@@ -1,8 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import jwt from 'jsonwebtoken';
+import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { getSession } from 'next-auth/react';
 import User from '../models/User';
 import SubscriptionService from '../services/SubscriptionService';
+import logger from '../config/logger';
+import { Request, Response, NextFunction } from 'express';
 
 export interface AuthenticatedRequest extends NextApiRequest {
   user?: any;
@@ -71,7 +73,41 @@ export async function checkCredits(
 }
 
 export function generateToken(userId: string): string {
-  return jwt.sign({ userId }, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h',
-  });
-} 
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET não está definido');
+  }
+  
+  const secret: Secret = process.env.JWT_SECRET;
+  const options: SignOptions = {
+    expiresIn: process.env.JWT_EXPIRES_IN ? Number(process.env.JWT_EXPIRES_IN) : '24h'
+  };
+  
+  return jwt.sign({ userId }, secret, options);
+}
+
+interface AuthRequest extends Request {
+  user?: any;
+}
+
+export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ error: 'Token não fornecido' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || '') as { id: string };
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Usuário não encontrado' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    logger.error('Erro na autenticação:', error);
+    return res.status(401).json({ error: 'Token inválido' });
+  }
+}; 

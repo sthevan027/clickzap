@@ -1,104 +1,115 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import {
-  Box,
-  Button,
   Container,
+  Box,
   FormControl,
   FormLabel,
-  Heading,
   Input,
+  Button,
   VStack,
-  useToast,
+  Heading,
   Text,
-  Link as ChakraLink,
+  Link,
+  useToast,
+  InputGroup,
+  InputRightElement,
+  IconButton,
 } from '@chakra-ui/react';
-import { useRouter } from 'next/router';
-import Link from 'next/link';
-import axios from 'axios';
+import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const toast = useToast();
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
   const router = useRouter();
+  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/login', {
-        email,
-        password,
-      });
-
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-
-      toast({
-        title: 'Login realizado com sucesso!',
-        status: 'success',
-        duration: 3000,
-      });
-
+      await login(email, password);
       router.push('/dashboard');
     } catch (error) {
       toast({
-        title: 'Erro ao fazer login',
-        description: error.response?.data?.error || 'Ocorreu um erro inesperado',
+        title: 'Erro',
+        description: error.message,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
+        isClosable: true,
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Box minH="100vh" bg="gray.50" py={12}>
-      <Container maxW="container.sm">
-        <VStack spacing={8} bg="white" p={8} borderRadius="lg" boxShadow="sm">
-          <Heading>Login</Heading>
-          <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+    <Container maxW="container.sm" py={10}>
+      <Box
+        p={8}
+        borderWidth={1}
+        borderRadius="lg"
+        boxShadow="lg"
+        bg="white"
+      >
+        <VStack spacing={6} as="form" onSubmit={handleSubmit}>
+          <Heading as="h1" size="xl" textAlign="center">
+            Login
+          </Heading>
+
+          <FormControl isRequired>
+            <FormLabel>Email</FormLabel>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+            />
+          </FormControl>
+
+          <FormControl isRequired>
+            <FormLabel>Senha</FormLabel>
+            <InputGroup>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Sua senha"
+              />
+              <InputRightElement>
+                <IconButton
+                  aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+                  icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
+                  variant="ghost"
+                  onClick={() => setShowPassword(!showPassword)}
                 />
-              </FormControl>
+              </InputRightElement>
+            </InputGroup>
+          </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel>Senha</FormLabel>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </FormControl>
+          <Button
+            type="submit"
+            colorScheme="blue"
+            size="lg"
+            width="full"
+            isLoading={loading}
+          >
+            Entrar
+          </Button>
 
-              <Button
-                type="submit"
-                colorScheme="brand"
-                size="lg"
-                isLoading={isLoading}
-              >
-                Entrar
-              </Button>
-
-              <Text textAlign="center">
-                Não tem uma conta?{' '}
-                <Link href="/register" passHref>
-                  <ChakraLink color="brand.500">Registre-se</ChakraLink>
-                </Link>
-              </Text>
-            </VStack>
-          </form>
+          <Text>
+            Não tem uma conta?{' '}
+            <Link color="blue.500" href="/register">
+              Registre-se
+            </Link>
+          </Text>
         </VStack>
-      </Container>
-    </Box>
+      </Box>
+    </Container>
   );
 } 

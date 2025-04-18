@@ -1,5 +1,10 @@
 import axios from 'axios';
+import dbConnect from '../database/db';
 import User from '../models/User';
+import { hotmartConfig } from '../config/hotmart';
+import logger from '../config/logger';
+
+const HOTMART_API_URL = 'https://api-hot-connect.hotmart.com';
 
 interface PlanLimits {
   messageCredits: number;
@@ -36,23 +41,15 @@ class SubscriptionService {
   }
 
   private async getHotmartToken(): Promise<string> {
-    if (this.hotmartToken && this.tokenExpiration && this.tokenExpiration > new Date()) {
-      return this.hotmartToken;
-    }
-
     try {
-      const response = await axios.post('https://api-sec-vlc.hotmart.com/security/oauth/token', {
-        grant_type: 'client_credentials',
+      const response = await axios.post(`${HOTMART_API_URL}/oauth/token`, {
         client_id: process.env.HOTMART_CLIENT_ID,
         client_secret: process.env.HOTMART_CLIENT_SECRET,
+        grant_type: 'client_credentials'
       });
-
-      this.hotmartToken = response.data.access_token;
-      this.tokenExpiration = new Date(Date.now() + response.data.expires_in * 1000);
-
-      return this.hotmartToken;
+      return response.data.access_token;
     } catch (error) {
-      console.error('Erro ao obter token Hotmart:', error);
+      logger.error('Erro ao obter token Hotmart:', error);
       throw new Error('Falha ao autenticar com Hotmart');
     }
   }
@@ -158,6 +155,141 @@ class SubscriptionService {
     } catch (error) {
       console.error('Erro ao deduzir créditos:', error);
       throw new Error('Falha ao deduzir créditos');
+    }
+  }
+
+  async validateSubscription(userId: string): Promise<boolean> {
+    try {
+      const token = await this.getHotmartToken();
+      const response = await axios.get(`https://api-hot-connect.hotmart.com/subscription/rest/v2/subscriptions/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      return response.data.status === 'ACTIVE';
+    } catch (error) {
+      console.error('Erro ao validar assinatura:', error);
+      return false;
+    }
+  }
+
+  async getSubscriptionDetails(userId: string): Promise<any> {
+    try {
+      const token = await this.getHotmartToken();
+      const response = await axios.get(`https://api-hot-connect.hotmart.com/subscription/rest/v2/subscriptions/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter detalhes da assinatura:', error);
+      throw new Error('Falha ao obter detalhes da assinatura');
+    }
+  }
+
+  async generateCheckoutLink(plan: 'basic' | 'premium'): Promise<string> {
+    try {
+      const planConfig = hotmartConfig[plan];
+      if (!planConfig) {
+        throw new Error('Plano inválido');
+      }
+
+      return `https://pay.hotmart.com/${planConfig.productId}?off=${planConfig.offerCode}`;
+    } catch (error) {
+      logger.error('Erro ao gerar link de checkout:', error);
+      throw error;
+    }
+  }
+
+  async validateWebhook(token: string, data: any): Promise<boolean> {
+    try {
+      if (!token || !data) {
+        return false;
+      }
+
+      // Implementar validação específica do webhook aqui
+      return true;
+    } catch (error) {
+      logger.error('Erro na validação do webhook:', error);
+      return false;
+    }
+  }
+
+  async processSubscriptionUpdate(userId: string, plan: string, status: string): Promise<void> {
+    try {
+      await dbConnect();
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      user.subscription = {
+        plan,
+        status,
+        updatedAt: new Date()
+      };
+
+      await user.save();
+      logger.info(`Assinatura atualizada para usuário ${userId}`);
+    } catch (error) {
+      logger.error('Erro ao processar atualização da assinatura:', error);
+      throw error;
+    }
+  }
+
+  async cancelSubscription(userId: string): Promise<void> {
+    try {
+      await dbConnect();
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      user.subscription.status = 'cancelled';
+      user.subscription.updatedAt = new Date();
+      await user.save();
+      
+      logger.info(`Assinatura cancelada para usuário ${userId}`);
+    } catch (error) {
+      logger.error('Erro ao cancelar assinatura:', error);
+      throw error;
+    }
+  }
+
+  async reactivateSubscription(userId: string): Promise<void> {
+    try {
+      await dbConnect();
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      user.subscription.status = 'active';
+      user.subscription.updatedAt = new Date();
+      await user.save();
+
+      logger.info(`Assinatura reativada para usuário ${userId}`);
+    } catch (error) {
+      logger.error('Erro ao reativar assinatura:', error);
+      throw error;
+    }
+  }
+
+  async getSubscriptionStatus(userId: string): Promise<any> {
+    try {
+      await dbConnect();
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      return user.subscription;
+    } catch (error) {
+      logger.error('Erro ao obter status da assinatura:', error);
+      throw error;
     }
   }
 }

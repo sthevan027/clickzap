@@ -1,72 +1,47 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const logger = require('../config/logger');
+const logger = require('../config/logger').logger;
 
-module.exports = async (req, res, next) => {
+const auth = async (req, res, next) => {
   try {
-    // Verifica se o token está presente no header
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
-      return res.status(401).json({ error: 'Token não fornecido' });
+      throw new Error('Token não fornecido');
     }
 
-    // Verifica e decodifica o token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Busca o usuário no banco
-    const user = await User.findById(decoded.userId);
-    
-    if (!user) {
-      return res.status(401).json({ error: 'Usuário não encontrado' });
-    }
+    req.user = decoded;
 
-    if (!user.active) {
-      return res.status(401).json({ error: 'Conta desativada' });
-    }
-
-    // Adiciona o usuário ao objeto da requisição
-    req.user = user;
-    
-    logger.info(`Usuário ${user.email} autenticado com sucesso`);
-    
+    logger.info(`Usuário autenticado: ${decoded.id}`);
     next();
   } catch (error) {
-    logger.error('Erro na autenticação:', error);
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ error: 'Token inválido' });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Token expirado' });
-    }
-    
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    logger.error('Erro de autenticação:', error);
+    res.status(401).json({ error: 'Não autorizado' });
   }
 };
 
-// Middleware para verificar se o usuário é admin
 const adminAuth = async (req, res, next) => {
-    try {
-        // Primeiro executa a autenticação normal
-        await auth(req, res, () => {
-            // Verifica se o usuário é admin
-            if (req.user.role !== 'admin') {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Acesso negado - apenas administradores'
-                });
-            }
-            next();
-        });
-    } catch (error) {
-        logger.error('Erro na autenticação de admin:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro na autenticação'
-        });
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      throw new Error('Token não fornecido');
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (decoded.role !== 'admin') {
+      throw new Error('Acesso restrito a administradores');
+    }
+
+    req.user = decoded;
+    logger.info(`Admin autenticado: ${decoded.id}`);
+    next();
+  } catch (error) {
+    logger.error('Erro de autenticação admin:', error);
+    res.status(403).json({ error: 'Acesso negado' });
+  }
 };
 
 // Middleware para verificar créditos do usuário

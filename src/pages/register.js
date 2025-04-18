@@ -1,114 +1,149 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import {
-  Box,
-  Button,
   Container,
+  Box,
   FormControl,
   FormLabel,
-  Heading,
   Input,
+  Button,
   VStack,
-  useToast,
+  Heading,
   Text,
-  Link as ChakraLink,
+  Link,
+  useToast,
+  InputGroup,
+  InputRightElement,
+  IconButton,
 } from '@chakra-ui/react';
-import { useRouter } from 'next/router';
-import Link from 'next/link';
-import axios from 'axios';
+import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const toast = useToast();
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
   const router = useRouter();
+  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
+
+    if (password !== confirmPassword) {
+      toast({
+        title: 'Erro',
+        description: 'As senhas não coincidem',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
-      const response = await axios.post('/api/auth/register', {
-        name,
-        email,
-        password,
-      });
-
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-
-      toast({
-        title: 'Conta criada com sucesso!',
-        status: 'success',
-        duration: 3000,
-      });
-
+      await register(name, email, password);
       router.push('/dashboard');
     } catch (error) {
       toast({
-        title: 'Erro ao criar conta',
-        description: error.response?.data?.error || 'Ocorreu um erro inesperado',
+        title: 'Erro',
+        description: error.message,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
+        isClosable: true,
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Box minH="100vh" bg="gray.50" py={12}>
-      <Container maxW="container.sm">
-        <VStack spacing={8} bg="white" p={8} borderRadius="lg" boxShadow="sm">
-          <Heading>Criar Conta</Heading>
-          <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Nome</FormLabel>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+    <Container maxW="container.sm" py={10}>
+      <Box
+        p={8}
+        borderWidth={1}
+        borderRadius="lg"
+        boxShadow="lg"
+        bg="white"
+      >
+        <VStack spacing={6} as="form" onSubmit={handleSubmit}>
+          <Heading as="h1" size="xl" textAlign="center">
+            Criar Conta
+          </Heading>
+
+          <FormControl isRequired>
+            <FormLabel>Nome</FormLabel>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome completo"
+            />
+          </FormControl>
+
+          <FormControl isRequired>
+            <FormLabel>Email</FormLabel>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+            />
+          </FormControl>
+
+          <FormControl isRequired>
+            <FormLabel>Senha</FormLabel>
+            <InputGroup>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Sua senha"
+              />
+              <InputRightElement>
+                <IconButton
+                  aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+                  icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
+                  variant="ghost"
+                  onClick={() => setShowPassword(!showPassword)}
                 />
-              </FormControl>
+              </InputRightElement>
+            </InputGroup>
+          </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </FormControl>
+          <FormControl isRequired>
+            <FormLabel>Confirmar Senha</FormLabel>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirme sua senha"
+            />
+          </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel>Senha</FormLabel>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </FormControl>
+          <Button
+            type="submit"
+            colorScheme="blue"
+            size="lg"
+            width="full"
+            isLoading={loading}
+          >
+            Registrar
+          </Button>
 
-              <Button
-                type="submit"
-                colorScheme="brand"
-                size="lg"
-                isLoading={isLoading}
-              >
-                Criar Conta
-              </Button>
-
-              <Text textAlign="center">
-                Já tem uma conta?{' '}
-                <Link href="/login" passHref>
-                  <ChakraLink color="brand.500">Faça login</ChakraLink>
-                </Link>
-              </Text>
-            </VStack>
-          </form>
+          <Text>
+            Já tem uma conta?{' '}
+            <Link color="blue.500" href="/login">
+              Faça login
+            </Link>
+          </Text>
         </VStack>
-      </Container>
-    </Box>
+      </Box>
+    </Container>
   );
 } 
