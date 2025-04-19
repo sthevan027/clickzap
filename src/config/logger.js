@@ -14,12 +14,12 @@ const logger = winston.createLogger({
   format: logFormat,
   transports: [
     new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/combined.log'),
+      filename: path.join(__dirname, '../../logs/error.log'),
+      level: 'error'
     }),
     new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/error.log'),
-      level: 'error',
-    }),
+      filename: path.join(__dirname, '../../logs/combined.log')
+    })
   ],
   exceptionHandlers: [
     new winston.transports.File({
@@ -35,30 +35,30 @@ const logger = winston.createLogger({
 
 // Adicionar console transport em desenvolvimento
 if (process.env.NODE_ENV !== 'production') {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
-    })
-  );
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    )
+  }));
 }
 
 // Função para criar logger específico para acesso
 const createAccessLogger = () => {
   return winston.createLogger({
-    level: 'info',
-    format: logFormat,
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
     transports: [
       new winston.transports.File({
-        filename: path.join(__dirname, '../../logs/access.log'),
-      }),
-    ],
+        filename: path.join(__dirname, '../../logs/access.log')
+      })
+    ]
   });
 };
 
 module.exports = {
   logger,
-  createAccessLogger,
+  createAccessLogger
 }; 

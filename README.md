@@ -1,24 +1,34 @@
-# ZapClick - Sistema de Automação WhatsApp
+# ZapClick
 
-Sistema de automação para WhatsApp com integração Hotmart e painel administrativo.
+Sistema de gerenciamento de assinaturas e automação de WhatsApp.
 
-## 🚀 Tecnologias
+## Funcionalidades
+
+- Autenticação de usuários
+- Gerenciamento de assinaturas via Hotmart
+- Integração com WhatsApp Web
+- Dashboard administrativo
+- Notificações automáticas
+- Temas claro/escuro
+
+## Tecnologias
 
 - Next.js
 - Node.js
 - MongoDB
 - Chakra UI
+- WhatsApp Web JS
+- Winston (logging)
 - Hotmart API
-- WhatsApp Web API
 
-## 📋 Pré-requisitos
+## Requisitos
 
-- Node.js 14.x ou superior
-- MongoDB Atlas ou local
-- Conta Hotmart com produtos configurados
-- WhatsApp Business API ou WhatsApp Web
+- Node.js 18+
+- MongoDB
+- Conta Hotmart
+- WhatsApp Web
 
-## 🔧 Instalação
+## Instalação
 
 1. Clone o repositório:
 ```bash
@@ -35,85 +45,46 @@ npm install
 ```bash
 cp .env.example .env
 ```
-Edite o arquivo `.env` com suas configurações.
+
+Edite o arquivo `.env` com suas configurações:
+
+```env
+MONGODB_URI=sua_uri_mongodb
+HOTMART_TOKEN=seu_token_hotmart
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
 4. Inicie o servidor de desenvolvimento:
 ```bash
 npm run dev
 ```
 
-## ⚙️ Configuração
+## Scripts
 
-### Variáveis de Ambiente
+- `npm run dev` - Inicia o servidor de desenvolvimento
+- `npm run build` - Gera build de produção
+- `npm start` - Inicia o servidor em produção
+- `npm run lint` - Executa verificação de código
 
-Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
-
-```env
-# Servidor
-PORT=3000
-
-# JWT
-JWT_SECRET=sua_chave_secreta
-JWT_EXPIRES_IN=7d
-
-# MongoDB
-MONGODB_URI=sua_uri_mongodb
-
-# Hotmart
-HOTMART_CLIENT_ID=seu_client_id
-HOTMART_CLIENT_SECRET=seu_client_secret
-HOTMART_WEBHOOK_TOKEN=seu_webhook_token
-
-# WhatsApp
-WHATSAPP_SESSION_FILE=whatsapp-session.json
-
-# Admin
-ADMIN_EMAIL=admin@email.com
-ADMIN_PASSWORD=sua_senha_segura
-```
-
-### Configuração Hotmart
-
-1. Acesse o painel da Hotmart
-2. Configure os produtos e ofertas
-3. Atualize os IDs e códigos no arquivo `src/config/hotmart.js`
-
-## 📦 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 src/
-├── components/     # Componentes React
-├── config/        # Configurações
-├── controllers/   # Controladores
-├── database/      # Configuração do banco
-├── middleware/    # Middlewares
-├── models/        # Modelos MongoDB
-├── pages/         # Páginas Next.js
-├── routes/        # Rotas
-├── services/      # Serviços
-└── utils/         # Utilitários
+  ├── components/     # Componentes React
+  ├── config/        # Configurações
+  ├── contexts/      # Contextos React
+  ├── database/      # Configuração do banco de dados
+  ├── models/        # Modelos do MongoDB
+  ├── pages/         # Páginas Next.js
+  ├── routes/        # Rotas da API
+  ├── services/      # Serviços
+  └── utils/         # Utilitários
 ```
 
-## 📝 Funcionalidades
+## Licença
 
-- Automação de mensagens no WhatsApp
-- Integração com Hotmart para vendas
-- Painel administrativo
-- Gerenciamento de usuários
-- Sistema de logs
-- Promoções e cupons
-
-## 🤝 Contribuindo
-
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto está licenciado sob a [Licença MIT](LICENSE).
 
 ## 📧 Contato
 
